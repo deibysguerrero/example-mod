@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
@@ -26,37 +29,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Multi-platform Environment
-        run: |
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            sudo apt-get update
-            sudo apt-get install -y build-essential cmake ninja-build
-          fi
-
-      - name: Install Geode CLI
-        uses: geode-sdk/cli-binaries@main
-
-      - name: Configure Internal Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-geode-compiler-cache-${{ hashFiles('**/CMakeLists.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-geode-compiler-cache-
-
-      - name: Validate Project Structure
-        shell: bash
-        run: |
-          if [ ! -f "mod.json" ]; then echo "Error: mod.json missing"; exit 1; fi
-          if [ ! -f "CMakeLists.txt" ]; then echo "Error: CMakeLists.txt missing"; exit 1; fi
-          if [ ! -d "src" ]; then echo "Error: src directory missing"; exit 1; fi
-
-      - name: Initialize Geode SDK
+      - name: Initialize Compilation Environment
         uses: geode-sdk/build-geode-mod@main
         with:
           bindings: geode-sdk/bindings
@@ -65,17 +38,17 @@ jobs:
           target: ${{ matrix.config.name == 'Android' && 'Android' || '' }}
           build-config: Release
 
-      - name: Prepare Output Artifacts
+      - name: Verify Output Files
         shell: bash
         run: |
-          mkdir -p output
-          mv *.geode output/ 2>/dev/null || true
+          ls -R
+          mkdir -p final_out
+          cp *.geode final_out/ 2>/dev/null || true
 
-      - name: Publish Compilation Result
+      - name: Upload Mod Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.config.name }}-Package
-          path: output/
+          path: final_out/
           if-no-files-found: error
-          retention-days: 7
           
