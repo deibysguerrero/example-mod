@@ -1,9 +1,19 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(AutoOrbesMod)
+project(AutoOrbes)
 
 find_package(geode-sdk REQUIRED)
 
-# Configura el mod usando el archivo main.cpp de la carpeta src
-setup_geode_mod(${PROJECT_NAME} SOURCES src/main.cpp)
+set(CMAKE_CXX_STANDARD 20)
+
+file(GLOB_RECURSE SOURCES 
+    "src/*.cpp"
+    "src/*.hpp"
+)
+
+setup_geode_mod(
+    ${PROJECT_NAME} 
+    SOURCES ${SOURCES}
+)
+
 
