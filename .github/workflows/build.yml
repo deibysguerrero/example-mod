@@ -14,24 +14,68 @@ jobs:
         config:
           - name: Windows
             os: windows-latest
-          - name: Android64
+          - name: Android
             os: ubuntu-latest
-            target: Android64
-          - name: Android32
-            os: ubuntu-latest
-            target: Android32
 
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Build Mod
+      - name: Setup Multi-platform Environment
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential cmake ninja-build
+          fi
+
+      - name: Install Geode CLI
+        uses: geode-sdk/cli-binaries@main
+
+      - name: Configure Internal Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-geode-compiler-cache-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-geode-compiler-cache-
+
+      - name: Validate Project Structure
+        shell: bash
+        run: |
+          if [ ! -f "mod.json" ]; then echo "Error: mod.json missing"; exit 1; fi
+          if [ ! -f "CMakeLists.txt" ]; then echo "Error: CMakeLists.txt missing"; exit 1; fi
+          if [ ! -d "src" ]; then echo "Error: src directory missing"; exit 1; fi
+
+      - name: Initialize Geode SDK
         uses: geode-sdk/build-geode-mod@main
         with:
           bindings: geode-sdk/bindings
+          bindings-ref: main
           combine: true
-          target: ${{ matrix.config.target }}
+          target: ${{ matrix.config.name == 'Android' && 'Android' || '' }}
+          build-config: Release
+
+      - name: Prepare Output Artifacts
+        shell: bash
+        run: |
+          mkdir -p output
+          mv *.geode output/ 2>/dev/null || true
+
+      - name: Publish Compilation Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.config.name }}-Package
+          path: output/
+          if-no-files-found: error
+          retention-days: 7
           
